@@ -9,7 +9,7 @@ This is currently tested with:
 ## Build
 
 `go mod download`  
-`go build -i rcli cmd/rcli/main.go`
+`go build -o rcli cmd/rcli/main.go`
 
 ## Usage
 
