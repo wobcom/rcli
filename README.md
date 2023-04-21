@@ -3,11 +3,12 @@
 This is a NETCONF-based Junos router cli for fast and easy router handling.
 
 This is currently tested with:
-    - MX204
+
+- MX204
 
 ## Build
 
-`go mod download`
+`go mod download`  
 `go build -i rcli cmd/rcli/main.go`
 
 ## Usage
