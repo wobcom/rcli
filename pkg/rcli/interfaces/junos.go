@@ -2,6 +2,7 @@ package interfaces
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"github.com/damianoneill/net/v2/netconf/client"
 	"github.com/damianoneill/net/v2/netconf/common"
@@ -79,6 +80,24 @@ func (j *JunosInterface) Close() {
 	j.RPCSession.Close()
 }
 
+func (j *JunosInterface) LockingConfiguration(executingFunc func() error) error {
+
+	err := j.LockConfiguration()
+	if err != nil {
+		return err
+	}
+	var unlockErr error
+
+	defer func() {
+		unlockErr = j.UnlockConfiguration()
+	}()
+
+	funcErr := executingFunc()
+
+	err = errors.Join(funcErr, unlockErr)
+	return err
+}
+
 func (j *JunosInterface) GetVersion() (string, error) {
 	resp, err := j.ExecuteCommand("show version", "json")
 
@@ -107,16 +126,17 @@ func (j *JunosInterface) GetConfiguration() (*api.JunosConfiguration, error) {
 	return junosConf, err
 }
 
-func (j *JunosInterface) LoadConfiguration(junosConfiguration *api.JunosConfiguration) error {
+func (j *JunosInterface) LoadConfiguration(junosConfiguration *api.JunosConfiguration, loadAction string) error {
 	slog.Info("Loading configuration onto router as candidate configuration")
+	slog.Info(fmt.Sprintf("Using action=%v", loadAction))
 	rpcReq := common.Request(fmt.Sprintf(`
 		<load-configuration
-			action="override"
-			format="text"
+			action="%v"
+			format="%v"
         >	    
 			%v
 		</load-configuration>
-    `, junosConfiguration.ToText()))
+    `, loadAction, junosConfiguration.ConfType, junosConfiguration.ToText()))
 
 	loadRes, err := j.DoRequest(rpcReq)
 	if err != nil {
@@ -187,4 +207,26 @@ func (j *JunosInterface) ExecuteCommand(command string, format string) (string, 
 	}
 	commandResult, err := api.ParseCommandResultsFromText(rpcRes, format)
 	return commandResult, err
+}
+
+func (j *JunosInterface) LockConfiguration() error {
+	slog.Info("Locking configuration")
+
+	rpcReq := common.Request(`
+	   	<lock-configuration/>
+	`)
+
+	_, err := j.DoRequest(rpcReq)
+	return err
+}
+
+func (j *JunosInterface) UnlockConfiguration() error {
+	slog.Info("Unlocking configuration")
+
+	rpcReq := common.Request(`
+	   	<unlock-configuration/>
+	`)
+
+	_, err := j.DoRequest(rpcReq)
+	return err
 }

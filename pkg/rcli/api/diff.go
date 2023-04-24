@@ -4,6 +4,8 @@ import (
 	"encoding/xml"
 	"fmt"
 	"github.com/TwiN/go-color"
+	"github.com/gookit/slog"
+	"os"
 	"regexp"
 	"strings"
 )
@@ -19,6 +21,8 @@ func ParseDiffFromText(text string) (*JunosDiff, error) {
 
 	junosConf := parseDummy.ConfigurationOutput
 	junosConf.ConfType = ConftypeText
+	junosConf.Diff = strings.TrimSpace(junosConf.Diff)
+	junosConf.IsEmpty = junosConf.Diff == ""
 
 	return &junosConf, nil
 }
@@ -26,12 +30,18 @@ func ParseDiffFromText(text string) (*JunosDiff, error) {
 type JunosDiff struct {
 	ConfType ConfType `xml:"-"`
 	Diff     string   `xml:",innerxml"`
+	IsEmpty  bool     `xml:"-"`
 	XMLName  struct{} `xml:"configuration-output"`
 }
 
 type JunosConfInfo struct {
 	XMLName             struct{}  `xml:"configuration-information"`
 	ConfigurationOutput JunosDiff `xml:"configuration-output"`
+}
+
+func (jD *JunosDiff) WriteToFile(filePath string) error {
+	slog.Info(fmt.Sprintf("Writing diff to %v", filePath))
+	return os.WriteFile(filePath, []byte(jD.Diff), 0644)
 }
 
 func (jD *JunosDiff) Print() {

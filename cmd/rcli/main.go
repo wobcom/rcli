@@ -16,34 +16,46 @@ type CommandContext struct {
 	User string
 }
 
-type ApplyCommand struct {
-	Router    string `arg:"" name:"router"`
-	LocalFile string `arg:"" name:"local_file" type:"existing_file"`
-}
-
-func cliDiffPrev(jI *interfaces.JunosInterface, localFile string) error {
+func cliDiffPrev(jI *interfaces.JunosInterface, localFile string, loadAction string, diffFile *string) (*api.JunosDiff, error) {
 
 	version, err := jI.GetVersion()
 	if err != nil {
-		return err
+		return nil, err
 	}
 	newConf, err := api.ParseFromFile(localFile, version)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	err = jI.LoadConfiguration(newConf)
+	err = jI.LoadConfiguration(newConf, loadAction)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	diff, err := jI.DiffConfiguration()
 	if err != nil {
-		return err
+		return nil, err
+	}
+
+	if diffFile != nil {
+		err := diff.WriteToFile(*diffFile)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	diff.Print()
-	return nil
+
+	return diff, nil
+}
+
+type ApplyCommand struct {
+	Yes        bool   `help:"Skips interactive diff reviewing, meant to use within CI environments"`
+	Commit     bool   `help:"Skips wait for commit and commits configuration after upload"`
+	LoadAction string `enum:"override,replace" default:"override"`
+
+	Router    string `arg:"" name:"router"`
+	LocalFile string `arg:"" name:"local_file" type:"existing_file"`
 }
 
 func (aC *ApplyCommand) Run(cc CommandContext) error {
@@ -53,34 +65,52 @@ func (aC *ApplyCommand) Run(cc CommandContext) error {
 	}
 	defer jI.Close()
 
-	err = cliDiffPrev(jI, aC.LocalFile)
-	if err != nil {
-		return nil
-	}
+	err = jI.LockingConfiguration(func() error {
 
-	doApplyPrompt := promptui.Select{
-		Label: fmt.Sprintf("Do you want to apply this configuration onto %v?", aC.Router),
-		Items: []string{
-			"No",
-			"Yes",
-		},
-		HideHelp: true,
-	}
+		diff, err := cliDiffPrev(jI, aC.LocalFile, aC.LoadAction, nil)
+		if err != nil {
+			return err
+		}
 
-	_, result, err := doApplyPrompt.Run()
+		if diff != nil {
+			slog.Warn("No changes found")
+			return nil
+		}
 
-	if err != nil || result != "Yes" {
-		return nil
-	}
+		if !aC.Yes {
+			doApplyPrompt := promptui.Select{
+				Label: fmt.Sprintf("Do you want to apply this configuration onto %v?", aC.Router),
+				Items: []string{
+					"No",
+					"Yes",
+				},
+				HideHelp: true,
+			}
 
-	err = jI.CommitConfiguration()
-	if err != nil {
+			_, result, err := doApplyPrompt.Run()
+
+			if err != nil || result != "Yes" {
+				return nil
+			}
+		} else {
+			slog.Debug("--yes was used, skipping interactive confirmation dialog...")
+		}
+
+		err = jI.CommitConfiguration()
+		if err != nil {
+			return err
+		}
+
+		if !aC.Commit {
+			slog.Info("Waiting 3 minutes before confirming configuration...")
+			time.Sleep(3 * time.Minute)
+		} else {
+			slog.Debug("--commit was used, skipping waiting period...")
+		}
+		err = jI.ConfirmConfiguration()
 		return err
-	}
+	})
 
-	slog.Info("Waiting 3 minutes before confirming configuration...")
-	time.Sleep(3 * time.Minute)
-	err = jI.ConfirmConfiguration()
 	if err != nil {
 		return err
 	}
@@ -113,6 +143,9 @@ func (eC *ExecCommand) Run(cc CommandContext) error {
 }
 
 type CheckCommand struct {
+	DiffOutput *string `help:"Writes the diff into a specified file" short:"f"`
+	LoadAction string  `enum:"override,replace" default:"override"`
+
 	Router    string `arg:"" name:"router"`
 	LocalFile string `arg:"" name:"local_file"`
 }
@@ -124,7 +157,14 @@ func (c *CheckCommand) Run(cc CommandContext) error {
 	}
 	defer jI.Close()
 
-	err = cliDiffPrev(jI, c.LocalFile)
+	err = jI.LockingConfiguration(func() error {
+		_, err := cliDiffPrev(jI, c.LocalFile, c.LoadAction, c.DiffOutput)
+		return err
+	})
+	if err != nil {
+		return err
+	}
+
 	return err
 }
 
@@ -139,10 +179,12 @@ type CommandLineInterface struct {
 func innerMain() error {
 
 	slog.Configure(func(logger *slog.SugaredLogger) {
-		f := logger.Formatter.(*slog.TextFormatter)
+		logger.Output = os.Stderr
 
+		f := logger.Formatter.(*slog.TextFormatter)
 		myTemplate := "[{{datetime}}] [{{level}}] {{message}}\n"
 		f.SetTemplate(myTemplate)
+
 		f.EnableColor = true
 	})
 
