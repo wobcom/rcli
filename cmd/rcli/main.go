@@ -51,10 +51,7 @@ func (aC *ApplyCommand) Run(cc CommandContext) error {
 	if err != nil {
 		return err
 	}
-	err = jI.Connect()
-	if err != nil {
-		return err
-	}
+	defer jI.Close()
 
 	err = cliDiffPrev(jI, aC.LocalFile)
 	if err != nil {
@@ -105,10 +102,7 @@ func (eC *ExecCommand) Run(cc CommandContext) error {
 	if err != nil {
 		return err
 	}
-	err = jI.Connect()
-	if err != nil {
-		return err
-	}
+	defer jI.Close()
 
 	result, err := jI.ExecuteCommand(strings.Join(eC.Command, " "), eC.Output)
 	if err != nil {
@@ -128,10 +122,7 @@ func (c *CheckCommand) Run(cc CommandContext) error {
 	if err != nil {
 		return err
 	}
-	err = jI.Connect()
-	if err != nil {
-		return err
-	}
+	defer jI.Close()
 
 	err = cliDiffPrev(jI, c.LocalFile)
 	return err

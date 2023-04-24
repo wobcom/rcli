@@ -10,10 +10,12 @@ import (
 	"strings"
 )
 
+// ConfType does track the type of the config.
+// Junos supports different configuration formats and we will support all of them at some time.
 type ConfType string
 
 const (
-	CONFTYPE_TEXT ConfType = "text"
+	ConftypeText ConfType = "text"
 )
 
 type JunosConfiguration struct {
@@ -25,7 +27,7 @@ type JunosConfiguration struct {
 func ParseFromText(text string) (*JunosConfiguration, error) {
 
 	junosConf := JunosConfiguration{
-		ConfType: CONFTYPE_TEXT,
+		ConfType: ConftypeText,
 	}
 
 	err := xml.Unmarshal([]byte(text), &junosConf)
@@ -42,11 +44,15 @@ func ParseFromFile(filePath string, version string) (*JunosConfiguration, error)
 		return nil, err
 	}
 
-	s := "version 21.4R3-S2.3;\n" + string(fileData)
+	versionString := fmt.Sprintf("version %v;\n", version)
+
+	s := versionString + string(fileData)
+
+	// Technically, this could contain other urlencoded characters, but Junos does not use those.
 	s = strings.Replace(s, "<", "&lt;", -1)
 	s = strings.Replace(s, ">", "&gt;", -1)
 	junosConf := JunosConfiguration{
-		ConfType: CONFTYPE_TEXT,
+		ConfType: ConftypeText,
 		Text:     s,
 	}
 	return &junosConf, nil
@@ -78,7 +84,7 @@ func ParseDiffFromText(text string) (*JunosDiff, error) {
 	}
 
 	junosConf := parseDummy.ConfigurationOutput
-	junosConf.ConfType = CONFTYPE_TEXT
+	junosConf.ConfType = ConftypeText
 
 	return &junosConf, nil
 }

@@ -25,14 +25,13 @@ func NewJunosInterface(routerAddress string, user string) (*JunosInterface, erro
 		User:          user,
 		RPCSession:    nil,
 	}
-	return &jI, nil
-}
 
-func SSHAgent() ssh.AuthMethod {
-	if sshAgent, err := net.Dial("unix", os.Getenv("SSH_AUTH_SOCK")); err == nil {
-		return ssh.PublicKeysCallback(agent.NewClient(sshAgent).Signers)
+	err := jI.Connect()
+	if err != nil {
+		return nil, err
 	}
-	return nil
+
+	return &jI, nil
 }
 
 func (j *JunosInterface) DoRequest(req common.Request) (string, error) {
@@ -44,12 +43,20 @@ func (j *JunosInterface) DoRequest(req common.Request) (string, error) {
 	return r.Data, nil
 }
 
+func getSSHAgentAuthMethod() ssh.AuthMethod {
+	if sshAgent, err := net.Dial("unix", os.Getenv("SSH_AUTH_SOCK")); err == nil {
+		return ssh.PublicKeysCallback(agent.NewClient(sshAgent).Signers)
+	}
+	return nil
+}
+
 func (j *JunosInterface) Connect() error {
 
+	sshAgentAuthMethod := getSSHAgentAuthMethod()
 	sshConfig := &ssh.ClientConfig{
 		User: j.User,
 		Auth: []ssh.AuthMethod{
-			SSHAgent(),
+			sshAgentAuthMethod,
 		},
 		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
 	}
@@ -66,6 +73,10 @@ func (j *JunosInterface) Connect() error {
 	j.RPCSession = s
 
 	return nil
+}
+
+func (j *JunosInterface) Close() {
+	j.RPCSession.Close()
 }
 
 func (j *JunosInterface) GetVersion() (string, error) {
