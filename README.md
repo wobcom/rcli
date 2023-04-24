@@ -15,10 +15,10 @@ This is currently tested with:
 
 rcli supports not a lot of commands. This is kinda intentional.
 We are currently using [Junos Ansible solution](https://www.juniper.net/documentation/us/en/software/junos-ansible/ansible/topics/concept/junos-ansible-modules-overview.html) to manage our router.
-This is quite hard to setup and dependencies need to be very well maintained.
+This is quite hard to set up and dependencies need to be very well maintained.
 
 We have a lot of people using this and a lot of small tasks, which are automated or can be done my almost anyone due to hard automation.
-Therefore, we want to get rid of some of the hand-crafted playbooks based on the Ansible solution.
+Therefore, we want to get rid of some hand-crafted playbooks based on the Ansible solution.
 
 ### apply
 
@@ -32,4 +32,4 @@ a diff related to the running configuration. It does **not** apply the configura
 
 ### exec
 
-`rcli exec` executes an abitrary cli command on the Junos router. Junos supports different output formats, which can be specified with `-o`. `json`, `xml` and `text` are supported.
+`rcli exec` executes an arbitrary cli command on the Junos router. Junos supports different output formats, which can be specified with `-o`. `json`, `xml` and `text` are supported.
