@@ -5,7 +5,6 @@ import (
 	"encoding/xml"
 	"errors"
 	"fmt"
-	"github.com/TwiN/go-color"
 	"os"
 	"strings"
 )
@@ -61,47 +60,6 @@ func ParseFromFile(filePath string, version string) (*JunosConfiguration, error)
 func (j *JunosConfiguration) ToText() string {
 	b, _ := xml.Marshal(j)
 	return string(b)
-}
-
-type JunosDiff struct {
-	ConfType ConfType `xml:"-"`
-	Diff     string   `xml:",innerxml"`
-	XMLName  struct{} `xml:"configuration-output"`
-}
-
-type JunosConfInfo struct {
-	XMLName             struct{}  `xml:"configuration-information"`
-	ConfigurationOutput JunosDiff `xml:"configuration-output"`
-}
-
-func ParseDiffFromText(text string) (*JunosDiff, error) {
-
-	parseDummy := JunosConfInfo{}
-
-	err := xml.Unmarshal([]byte(text), &parseDummy)
-	if err != nil {
-		return nil, err
-	}
-
-	junosConf := parseDummy.ConfigurationOutput
-	junosConf.ConfType = ConftypeText
-
-	return &junosConf, nil
-}
-
-func (jD *JunosDiff) Print() {
-	lines := strings.Split(jD.Diff, "\n")
-	for _, line := range lines {
-		if strings.HasPrefix(line, "[") {
-			fmt.Println(color.InPurple(line))
-		} else if strings.HasPrefix(line, "+") {
-			fmt.Println(color.InGreen(line))
-		} else if strings.HasPrefix(line, "-") {
-			fmt.Println(color.InRed(line))
-		} else {
-			fmt.Println(line)
-		}
-	}
 }
 
 type RPCErrorInfo struct {
