@@ -72,7 +72,7 @@ func (aC *ApplyCommand) Run(cc CommandContext) error {
 			return err
 		}
 
-		if diff != nil {
+		if diff == nil {
 			slog.Warn("No changes found")
 			return nil
 		}
