@@ -1,5 +1,5 @@
 {
-  description = "sparsesrv";
+  description = "rcli";
 
   inputs.nixpkgs.url = "github:NixOS/nixpkgs/master";
 
@@ -24,7 +24,7 @@
               pname = "rcli";
               version = "0.1.0";
               src = self;
-              vendorSha256 = "sha256-TOJJfgTvXl/5HGcBM+MgYAX9GDzhKQoTYxEek+TlIys=";
+              vendorHash = "sha256-TOJJfgTvXl/5HGcBM+MgYAX9GDzhKQoTYxEek+TlIys=";
               CGO_ENABLED = 0;
             }
           ) { };
