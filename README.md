@@ -1,5 +1,9 @@
 # rcli
 
+This was superseeded by [rucli](https://github.com/wobcom/rucli).
+
+## Introduction
+
 This is a NETCONF-based Junos router cli for fast and easy router handling.
 
 This is currently tested with:
